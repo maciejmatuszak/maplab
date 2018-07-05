@@ -14,6 +14,8 @@
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-parameter"
+#include <diagnostic_updater/diagnostic_updater.h>
+#include <diagnostic_updater/publisher.h>
 #include <geometry_msgs/PoseStamped.h>
 #include <geometry_msgs/Vector3Stamped.h>
 #include <ros/ros.h>
@@ -50,6 +52,8 @@ class DataPublisherFlow {
       const aslam::Transformation& T_G_M);
   void localizationCallback(const Eigen::Vector3d& p_G_I_lc_pnp);
 
+  void diagTimerUpdateCallback(const ros::TimerEvent &);
+
   std::unique_ptr<visualization::ViwlsGraphRvizPlotter> plotter_;
   ros::NodeHandle node_handle_;
   ros::Publisher pub_pose_T_M_I_;
@@ -59,6 +63,11 @@ class DataPublisherFlow {
   ros::Publisher pub_imu_acc_bias_;
   ros::Publisher pub_imu_gyro_bias_;
   ros::Publisher pub_extrinsics_T_C_Bs_;
+
+  diagnostic_updater::Updater diagUpdater;
+  diagnostic_updater::TopicDiagnostic *diagTopicVinsPublishPtr;
+  ros::Timer diagUpdateTimer;
+
 
   common::TimeoutCounter map_publisher_timeout_;
 

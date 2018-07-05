@@ -30,6 +30,12 @@ DEFINE_bool(
 
 DECLARE_bool(rovioli_run_map_builder);
 
+DEFINE_double(
+    rivioli_diagnostic_expected_output_freq, 15.0,
+    "ros /diagnostic topic is setup for output of vins state estimate "
+    "frequency.");
+
+
 namespace rovioli {
 namespace {
 inline ros::Time createRosTimestamp(int64_t timestamp_nanoseconds) {
@@ -48,6 +54,14 @@ DataPublisherFlow::DataPublisherFlow()
               FLAGS_map_publish_interval_s * kSecondsToNanoSeconds)) {
   visualization::RVizVisualizationSink::init();
   plotter_.reset(new visualization::ViwlsGraphRvizPlotter);
+
+  diagUpdater.setHardwareID("rovioli");
+  diagUpdateTimer = node_handle_.createTimer(ros::Duration(0.5), &DataPublisherFlow::diagTimerUpdateCallback, this);
+}
+
+
+void DataPublisherFlow::diagTimerUpdateCallback(const ros::TimerEvent&){
+    diagUpdater.update();
 }
 
 void DataPublisherFlow::registerPublishers() {
@@ -65,6 +79,12 @@ void DataPublisherFlow::registerPublishers() {
       node_handle_.advertise<geometry_msgs::Vector3Stamped>(kTopicBiasGyro, 1);
   pub_extrinsics_T_C_Bs_ = node_handle_.advertise<geometry_msgs::PoseArray>(
       kCameraExtrinsicTopic, 1);
+
+
+  diagTopicVinsPublishPtr = new diagnostic_updater::TopicDiagnostic("ROVIOLI VINS STATE", diagUpdater,
+      diagnostic_updater::FrequencyStatusParam(&FLAGS_rivioli_diagnostic_expected_output_freq, &FLAGS_rivioli_diagnostic_expected_output_freq, 0.1, 100),
+      diagnostic_updater::TimeStampStatusParam());
+
 }
 
 void DataPublisherFlow::attachToMessageFlow(message_flow::MessageFlow* flow) {
@@ -185,6 +205,7 @@ void DataPublisherFlow::publishVinsState(
       T_M_I, timestamp_ros, visualization::kDefaultMissionFrame,
       &T_M_I_message);
   pub_pose_T_M_I_.publish(T_M_I_message);
+  diagTopicVinsPublishPtr->tick(T_M_I_message.header.stamp);
   visualization::publishTF(
       T_M_I, visualization::kDefaultMissionFrame,
       visualization::kDefaultImuFrame, timestamp_ros);
