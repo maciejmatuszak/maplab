@@ -18,6 +18,7 @@
 #include <sensor_msgs/CameraInfo.h>
 #include <sensor_msgs/Image.h>
 #include <sensor_msgs/PointCloud2.h>
+#include <sensor_msgs/LaserScan.h>
 #include <tf/tf.h>
 #include <tf/tfMessage.h>
 #include <tf/transform_datatypes.h>
@@ -134,6 +135,7 @@ void SimpleRosbagSource::readRosbag() {
       }
       LOG(FATAL) << "[camera extrinsics topic] Unsupported ROS message type.";
     } else if (topic == resource_topic_) {
+        //is it image
       sensor_msgs::ImageConstPtr image_message =
           message.instantiate<sensor_msgs::Image>();
       if (image_message) {
@@ -143,11 +145,24 @@ void SimpleRosbagSource::readRosbag() {
         continue;
       }
 
+      //is it PointCloud2
       sensor_msgs::PointCloud2ConstPtr pointcloud_message =
           message.instantiate<sensor_msgs::PointCloud2>();
       if (pointcloud_message) {
         CHECK(pointcloud_lambda_);
         pointcloud_lambda_(pointcloud_message);
+        ++it_message;
+        continue;
+      }
+
+      //is it laser scan
+      sensor_msgs::LaserScanConstPtr laser_scann_message =
+          message.instantiate<sensor_msgs::LaserScan>();
+      if (laser_scann_message) {
+        CHECK(pointcloud_lambda_);
+        sensor_msgs::PointCloud2Ptr pc2Ptr = boost::make_shared<sensor_msgs::PointCloud2>();
+        laser_projector_.projectLaser(*laser_scann_message, *pc2Ptr);
+        pointcloud_lambda_(pc2Ptr);
         ++it_message;
         continue;
       }

@@ -10,5 +10,8 @@ cs_add_library(${PROJECT_NAME}_lib src/message-conversion.cc
 cs_add_executable(${PROJECT_NAME} role/resource-importer.cc)
 target_link_libraries(${PROJECT_NAME} ${PROJECT_NAME}_lib)
 
+cs_add_executable(${PROJECT_NAME}_lidar role/lidar-importer.cc)
+target_link_libraries(${PROJECT_NAME}_lidar ${PROJECT_NAME}_lib)
+
 cs_install()
 cs_export()

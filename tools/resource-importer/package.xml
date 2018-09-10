@@ -20,6 +20,7 @@
   <depend>opencv3_catkin</depend>
   <depend>rosbag</depend>
   <depend>sensor_msgs</depend>
+  <depend>laser_geometry</depend>
   <depend>tf</depend>
   <depend>vi_map</depend>
 </package>

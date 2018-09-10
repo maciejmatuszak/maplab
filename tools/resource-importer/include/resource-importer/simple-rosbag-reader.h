@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 
+#include <laser_geometry/laser_geometry.h>
 #include <Eigen/Core>
 #include <cv_bridge/cv_bridge.h>
 #include <geometry_msgs/Transform.h>
@@ -55,6 +56,7 @@ class SimpleRosbagSource {
 
   const std::string rosbag_imu_frame_;
   const std::string rosbag_camera_frame_;
+  laser_geometry::LaserProjection laser_projector_;
 
   // We fill this transformer with all tf messages until we can successfully
   // retrieve the camera extrinsics we are interested in.
