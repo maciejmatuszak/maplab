@@ -126,7 +126,7 @@ int main(int argc, char* argv[]) {
         resources::PointCloud maplab_pointcloud;
         convertPointCloudMessage(point_cloud_msg, &maplab_pointcloud);
 
-        map.storeOptionalLidarPointCloudXYZI();
+        map.storeOptionalLidarPointCloudXYZI(
             sensor_id, timestamp_ns, maplab_pointcloud, &selected_mission);
       };
   rosbag_source.setPointcloudCallback(pointcloud_callback);
