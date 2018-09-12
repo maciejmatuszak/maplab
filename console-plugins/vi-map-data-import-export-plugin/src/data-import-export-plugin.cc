@@ -5,6 +5,7 @@
 #include <map-manager/map-manager.h>
 #include <maplab-common/file-logger.h>
 #include <vi-map-data-import-export/export-ncamera-calibration.h>
+#include <vi-map-data-import-export/export-sensor.h>
 #include <vi-map-data-import-export/export-vertex-data.h>
 #include <vi-map-data-import-export/import-export-gps-data.h>
 #include <vi-map/vi-map.h>
@@ -23,6 +24,14 @@ DEFINE_string(
 DEFINE_string(
     ncamera_calibration_export_folder, "",
     "Folder to export the ncamera calibration into.");
+
+DEFINE_string(
+    sensor_yaml, "",
+    "file name to import/export the sensor yaml");
+
+DEFINE_string(
+    sensor_id, "",
+    "id of the sensor to import/export");
 
 DEFINE_string(pose_export_file, "", "File to export poses to.");
 
@@ -102,6 +111,13 @@ DataImportExportPlugin::DataImportExportPlugin(common::Console* console)
       [this]() -> int { return exportNCameraCalibration(); },
       "Exports the ncamera calibration to the folder specified with "
       "--ncamera_calibration_export_folder.",
+      common::Processing::Sync);
+
+  addCommand(
+      {"export_sensor", "es"},
+      [this]() -> int { return exportSensorYaml(); },
+      "Exports the sensor info to yaml file"
+      "--sensor_yaml --sensor_id.",
       common::Processing::Sync);
 
   addCommand(
@@ -250,6 +266,34 @@ int DataImportExportPlugin::exportNCameraCalibration() const {
   data_import_export::exportNCameraCalibration(
       *map, FLAGS_ncamera_calibration_export_folder);
   return common::kSuccess;
+}
+
+int DataImportExportPlugin::exportSensorYaml() const
+{
+    std::string selected_map_key;
+    if (!getSelectedMapKeyIfSet(&selected_map_key)) {
+      return common::kStupidUserError;
+    }
+
+    vi_map::VIMapManager map_manager;
+    vi_map::VIMapManager::MapReadAccess map =
+        map_manager.getMapReadAccess(selected_map_key);
+
+    if (FLAGS_sensor_yaml.empty()) {
+      LOG(ERROR) << "Specify a valid path for sensor yaml file "
+                 << "--sensor_yaml";
+      return common::kStupidUserError;
+    }
+
+    if (FLAGS_sensor_id.empty()) {
+      LOG(ERROR) << "Specify a valid sensor id to be exported"
+                 << "--sensor_id";
+      return common::kStupidUserError;
+    }
+
+    data_import_export::exportSensor(
+        *map, FLAGS_sensor_yaml, FLAGS_sensor_id);
+    return common::kSuccess;
 }
 
 int DataImportExportPlugin::importGpsDataFromRosbag() const {

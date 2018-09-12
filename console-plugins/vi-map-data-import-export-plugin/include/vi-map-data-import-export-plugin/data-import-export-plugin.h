@@ -20,6 +20,7 @@ class DataImportExportPlugin : public common::ConsolePluginBase {
   int exportMissionInfo() const;
   int exportPosesVelocitiesAndBiasesToCsv() const;
   int exportNCameraCalibration() const;
+  int exportSensorYaml() const;
   int importGpsDataFromRosbag() const;
   int exportGpsUtmToCsv() const;
   int exportGpsWgsToCsv() const;
