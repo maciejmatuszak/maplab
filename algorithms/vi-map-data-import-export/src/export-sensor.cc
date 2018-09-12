@@ -5,6 +5,8 @@
 #include <console-common/command-registerer.h>
 #include <maplab-common/file-system-tools.h>
 #include <vi-map/unique-id.h>
+#include <sensors/sensor-factory.h>
+#include <sensors/sensor-extrinsics.h>
 #include <vi-map/vi-map.h>
 #include <vi-map/vi-mission.h>
 
@@ -54,11 +56,9 @@ int exportSensor(const vi_map::VIMap &map, const std::string &sensor_file, const
     return common::kSuccess;
 }
 
-int importSensor(const VIMap &map, const std::string &sensor_file, const std::string &mission_id_str)
+int importSensor(VIMap &map, const std::string &sensor_file, const std::string &mission_id_str)
 {
-    const vi_map::SensorManager& sensor_manager = map.getSensorManager();
-
-    MissionIdSet missionIdsToLink;
+    MissionIdList missionIdsToLink;
     if(mission_id_str.empty())
     {
         LOG(INFO) << "Imported sensor will be linked to all missions";
@@ -71,11 +71,58 @@ int importSensor(const VIMap &map, const std::string &sensor_file, const std::st
             << "Invalid mission id: " << mission_id_str;
         CHECK(map.hasMission(selected_mission_id))
             << "This map does not contain a mission with id: " << selected_mission_id.hexString();
-        missionIdsToLink.emplace(selected_mission_id);
+        missionIdsToLink.push_back(selected_mission_id);
         LOG(INFO) << "Imported sensor will be linked to mission: " << selected_mission_id.hexString();
     }
 
     YAML::Node yaml_node = YAML::LoadFile(sensor_file.c_str());
+    CHECK(yaml_node.IsMap()) << "Invalid structure of " << sensor_file;
+
+    const YAML::Node &yaml_node_sensor = yaml_node["sensor"];
+    CHECK(yaml_node_sensor) << "missing sensor node in file: " << sensor_file;
+    vi_map::Sensor::UniquePtr sensorPtr = vi_map::createSensorFromYaml(yaml_node_sensor);
+    SensorId sensor_id = sensorPtr->getId();
+    CHECK(sensorPtr->isValid()) << "invalid sensor node in file: " << sensor_file;
+    if(map.getSensorManager().hasSensor(sensorPtr->getId()))
+    {
+        LOG(INFO) << "sensor id: " << sensorPtr->getId().hexString() << " already exists ";
+        const Sensor &existing_sensor = map.getSensorManager().getSensor(sensorPtr->getId());
+        CHECK(existing_sensor == *sensorPtr) << "Imported sensor and existing sensors are different !";
+    }
+    else
+    {
+        map.getSensorManager().addSensor(std::move(sensorPtr), missionIdsToLink[0u]);
+    }
+    SensorIdSet sensor_ids;
+    for (size_t idx = 0u; idx < missionIdsToLink.size(); ++idx)
+    {
+      const MissionId& mission_id = missionIdsToLink[idx];
+      map.getSensorManager().getAllSensorIdsAssociatedWithMission(mission_id, &sensor_ids);
+      if(sensor_ids.count(sensor_id) == 0)
+      {
+          map.getSensorManager().associateExistingSensorWithMission(sensor_id, mission_id);
+      }
+    }
+
+    const YAML::Node &yaml_node_extr = yaml_node["extrinsics"];
+    Extrinsics::UniquePtr exPtr = Extrinsics::createFromYaml(yaml_node_extr);
+
+    if(exPtr)
+    {
+        if (!map.getSensorManager().hasSensorSystem()) {
+          SensorIdSet imu_sensors_ids;
+          map.getSensorManager().getAllSensorIdsOfTypeAssociatedWithMission(
+              SensorType::kImu, missionIdsToLink[0], &imu_sensors_ids);
+          // only supporting missions with on imu, a flag can ba added to select
+          // reference sensor if required
+          CHECK_EQ(imu_sensors_ids.size(), 1u);
+          SensorId refImuId = *(imu_sensors_ids.begin());
+          SensorSystem::UniquePtr ss(new SensorSystem(refImuId));
+          map.getSensorManager().addSensorSystem(std::move(ss));
+        }
+        map.getSensorManager().setSensor_T_R_S(sensor_id, exPtr->get_T_R_S());
+    }
+
     return common::kSuccess;
 }
 

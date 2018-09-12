@@ -30,6 +30,10 @@ DEFINE_string(
     "file name to import/export the sensor yaml");
 
 DEFINE_string(
+    mission_id, "",
+    "optional - when importing id of the mission to which associate the sensor, if not supplied it will be associated to all missions within selected map");
+
+DEFINE_string(
     sensor_id, "",
     "id of the sensor to import/export");
 
@@ -116,8 +120,16 @@ DataImportExportPlugin::DataImportExportPlugin(common::Console* console)
   addCommand(
       {"export_sensor", "es"},
       [this]() -> int { return exportSensorYaml(); },
-      "Exports the sensor info to yaml file"
+      "Exports the sensor info to yaml file "
       "--sensor_yaml --sensor_id.",
+      common::Processing::Sync);
+
+  addCommand(
+      {"import_sensor", "is"},
+      [this]() -> int { return importSensorYaml(); },
+      "Imports the sensor info from yaml file "
+      "the imported sensor will be associated with all missions or specific mission if set via --mission_id"
+      "--sensor_yaml --mission_id.",
       common::Processing::Sync);
 
   addCommand(
@@ -293,6 +305,29 @@ int DataImportExportPlugin::exportSensorYaml() const
 
     data_import_export::exportSensor(
         *map, FLAGS_sensor_yaml, FLAGS_sensor_id);
+    return common::kSuccess;
+}
+
+int DataImportExportPlugin::importSensorYaml() const
+{
+    std::string selected_map_key;
+    if (!getSelectedMapKeyIfSet(&selected_map_key)) {
+      return common::kStupidUserError;
+    }
+
+    vi_map::VIMapManager map_manager;
+    vi_map::VIMapManager::MapWriteAccess map =
+        map_manager.getMapWriteAccess(selected_map_key);
+
+    if (FLAGS_sensor_yaml.empty()) {
+      LOG(ERROR) << "Specify a valid path for sensor yaml file "
+                 << "--sensor_yaml";
+      return common::kStupidUserError;
+    }
+
+
+    data_import_export::importSensor(
+        *map, FLAGS_sensor_yaml, FLAGS_mission_id);
     return common::kSuccess;
 }
 
