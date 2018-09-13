@@ -344,13 +344,14 @@ int DataImportExportPlugin::importSensorYaml() const
 }
 
 int DataImportExportPlugin::importGpsDataFromRosbag() const {
-  if (FLAGS_bag_file.empty()) {
+  const std::string& bag_file = FLAGS_bag_file;
+  if (bag_file.empty()) {
     LOG(ERROR) << "The specified bag file parameter is empty. "
                << "Please specify a valid bag file with --bag_file.";
     return common::kStupidUserError;
   }
 
-  if (!common::fileExists(FLAGS_bag_file)) {
+  if (!common::fileExists(bag_file)) {
     LOG(ERROR) << "The specified bag file does not "
                << "exist on the file-system. Please point to an existing bag "
                << "file with --bag_file.";
