@@ -23,6 +23,7 @@ class DataImportExportPlugin : public common::ConsolePluginBase {
   int exportSensorYaml() const;
   int importSensorYaml() const;
   int importGpsDataFromRosbag() const;
+  int importLaserScannFromRosbag() const;
   int exportGpsUtmToCsv() const;
   int exportGpsWgsToCsv() const;
 };

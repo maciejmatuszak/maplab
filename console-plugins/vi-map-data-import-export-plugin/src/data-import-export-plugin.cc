@@ -45,6 +45,9 @@ DEFINE_string(
     gps_topic, "", "The topic name for importing GPS/UTM data from a rosbag.");
 
 DEFINE_string(
+    laser_topic, "", "The topic name for importing laser scan data from a rosbag.");
+
+DEFINE_string(
     gps_yaml, "",
     "The GPS sensor YAML file containing ID, type and calibration parameters.");
 
@@ -138,6 +141,13 @@ DataImportExportPlugin::DataImportExportPlugin(common::Console* console)
       "Imports GPS (UTM, WGS) data from the rosbag specified with --bag_file. "
       "The topic can be specified with --gps_topic and the YAML file with "
       "--gps_yaml.",
+      common::Processing::Sync);
+
+  addCommand(
+      {"import_lasser_data_from_rosbag"},
+      [this]() -> int { return importLaserScannFromRosbag(); },
+      "Imports LaserScan data from the rosbag specified with --bag_file. "
+      "The topic can be specified with --laser_topic",
       common::Processing::Sync);
 
   addCommand(
@@ -334,14 +344,13 @@ int DataImportExportPlugin::importSensorYaml() const
 }
 
 int DataImportExportPlugin::importGpsDataFromRosbag() const {
-  const std::string& bag_file = FLAGS_bag_file;
-  if (bag_file.empty()) {
+  if (FLAGS_bag_file.empty()) {
     LOG(ERROR) << "The specified bag file parameter is empty. "
                << "Please specify a valid bag file with --bag_file.";
     return common::kStupidUserError;
   }
 
-  if (!common::fileExists(bag_file)) {
+  if (!common::fileExists(FLAGS_bag_file)) {
     LOG(ERROR) << "The specified bag file does not "
                << "exist on the file-system. Please point to an existing bag "
                << "file with --bag_file.";
@@ -402,6 +411,55 @@ int DataImportExportPlugin::importGpsDataFromRosbag() const {
   CHECK(mission_id.isValid());
   data_import_export::importGpsDataFromRosbag(
       bag_file, gps_topic, gps_yaml, mission_id, map.get());
+
+  return common::kSuccess;
+}
+
+int DataImportExportPlugin::importLaserScannFromRosbag() const {
+  const std::string& bag_file = FLAGS_bag_file;
+  if (bag_file.empty()) {
+    LOG(ERROR) << "The specified bag file parameter is empty. "
+               << "Please specify a valid bag file with --bag_file.";
+    return common::kStupidUserError;
+  }
+
+  if (!common::fileExists(bag_file)) {
+    LOG(ERROR) << "The specified bag file does not "
+               << "exist on the file-system. Please point to an existing bag "
+               << "file with --bag_file.";
+    return common::kStupidUserError;
+  }
+
+  if (FLAGS_laser_topic.empty()) {
+    LOG(ERROR) << "laser topic is empty. Please specify "
+               << "valid laser_scan topic with --laser_topic.";
+    return common::kStupidUserError;
+  }
+
+  if (FLAGS_sensor_id.empty()) {
+    LOG(ERROR) << "Specify a valid sensor id to be associated with laser scanns"
+               << "--sensor_id";
+    return common::kStupidUserError;
+  }
+
+  if (FLAGS_mission_id.empty()) {
+    LOG(ERROR) << "Specify a valid mission id to be associated with laser scanns"
+               << "--mission_id";
+    return common::kStupidUserError;
+  }
+
+  std::string selected_map_key;
+  if (!getSelectedMapKeyIfSet(&selected_map_key)) {
+    return common::kStupidUserError;
+  }
+
+  vi_map::VIMapManager map_manager;
+  vi_map::VIMapManager::MapWriteAccess map =
+      map_manager.getMapWriteAccess(selected_map_key);
+
+  data_import_export::importLaserDataFromRosbag(
+      bag_file, FLAGS_laser_topic,
+      FLAGS_sensor_id, FLAGS_mission_id, map.get());
 
   return common::kSuccess;
 }
