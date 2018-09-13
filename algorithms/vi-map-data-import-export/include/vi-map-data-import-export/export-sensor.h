@@ -8,9 +8,11 @@
 namespace data_import_export {
 
 int exportSensor(
-    const vi_map::VIMap& map, const std::string& sensor_file, const std::string& sensor_id_str);
+    const vi_map::VIMap& map, const std::string& sensor_file,
+    const std::string& sensor_id_str);
 int importSensor(
-    vi_map::VIMap& map, const std::string& sensor_file, const std::string& mission_id_str);
+    vi_map::VIMap& map, const std::string& sensor_file,
+    const std::string& mission_id_str);
 
 }  // namespace data_import_export
 

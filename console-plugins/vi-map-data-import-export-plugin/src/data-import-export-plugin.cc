@@ -120,14 +120,14 @@ DataImportExportPlugin::DataImportExportPlugin(common::Console* console)
   addCommand(
       {"export_sensor", "es"},
       [this]() -> int { return exportSensorYaml(); },
-      "Exports the sensor info to yaml file "
+      "Exports the sensor info with extrinsics to to yaml file "
       "--sensor_yaml --sensor_id.",
       common::Processing::Sync);
 
   addCommand(
       {"import_sensor", "is"},
       [this]() -> int { return importSensorYaml(); },
-      "Imports the sensor info from yaml file "
+      "Imports the sensor info and extrinsics from yaml file "
       "the imported sensor will be associated with all missions or specific mission if set via --mission_id"
       "--sensor_yaml --mission_id.",
       common::Processing::Sync);
@@ -287,6 +287,7 @@ int DataImportExportPlugin::exportSensorYaml() const
       return common::kStupidUserError;
     }
 
+    //we need read access to the map
     vi_map::VIMapManager map_manager;
     vi_map::VIMapManager::MapReadAccess map =
         map_manager.getMapReadAccess(selected_map_key);
@@ -315,6 +316,7 @@ int DataImportExportPlugin::importSensorYaml() const
       return common::kStupidUserError;
     }
 
+    //we need write access to the map
     vi_map::VIMapManager map_manager;
     vi_map::VIMapManager::MapWriteAccess map =
         map_manager.getMapWriteAccess(selected_map_key);
