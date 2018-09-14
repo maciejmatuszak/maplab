@@ -94,28 +94,24 @@ int importSensor(
   SensorId sensor_id = sensorPtr->getId();
   CHECK(sensorPtr->isValid()) << "invalid sensor node in file: " << sensor_file;
 
+  SensorManager& sm = map.getSensorManager();
+
   // check if the sensor exists or create it
-  if (map.getSensorManager().hasSensor(sensorPtr->getId())) {
+  if (sm.hasSensor(sensorPtr->getId())) {
     LOG(INFO) << "sensor id: " << sensorPtr->getId().hexString()
               << " already exists ";
-    const Sensor& existing_sensor =
-        map.getSensorManager().getSensor(sensorPtr->getId());
+    const Sensor& existing_sensor = sm.getSensor(sensorPtr->getId());
     CHECK(existing_sensor == *sensorPtr)
         << "Imported sensor and existing sensors are different !";
   } else {
     LOG(INFO) << "adding sensor id: " << sensorPtr->getId().hexString();
-    map.getSensorManager().addSensor(
-        std::move(sensorPtr), missionIdsToLink[0u]);
+    sm.addSensor(std::move(sensorPtr), missionIdsToLink[0u]);
   }
-  SensorIdSet sensor_ids;
   // link the sensor to all selected missions
   for (size_t idx = 0u; idx < missionIdsToLink.size(); ++idx) {
     const MissionId& mission_id = missionIdsToLink[idx];
-    map.getSensorManager().getAllSensorIdsAssociatedWithMission(
-        mission_id, &sensor_ids);
-    if (sensor_ids.count(sensor_id) == 0) {
-      map.getSensorManager().associateExistingSensorWithMission(
-          sensor_id, mission_id);
+    if (!sm.hasSensorMissionAssociation(sensor_id, mission_id)) {
+      sm.associateExistingSensorWithMission(sensor_id, mission_id);
     }
   }
 
@@ -125,21 +121,21 @@ int importSensor(
   Extrinsics::UniquePtr exPtr = Extrinsics::createFromYaml(yaml_node_extr);
 
   if (exPtr) {
-    if (!map.getSensorManager().hasSensorSystem()) {
+    if (!sm.hasSensorSystem()) {
       // we do not have sensor system
       // we need reference sensor - lets pick first imu
       SensorIdSet imu_sensors_ids;
-      map.getSensorManager().getAllSensorIdsOfTypeAssociatedWithMission(
+      sm.getAllSensorIdsOfTypeAssociatedWithMission(
           SensorType::kImu, missionIdsToLink[0], &imu_sensors_ids);
       // only supporting missions with on imu, a flag can ba added to select
       // reference sensor if required
       CHECK_EQ(imu_sensors_ids.size(), 1u);
       SensorId refImuId = *(imu_sensors_ids.begin());
       SensorSystem::UniquePtr ss(new SensorSystem(refImuId));
-      map.getSensorManager().addSensorSystem(std::move(ss));
+      sm.addSensorSystem(std::move(ss));
     }
-    //now we have sensor system we can set extrinsics
-    map.getSensorManager().setSensor_T_R_S(sensor_id, exPtr->get_T_R_S());
+    // now we have sensor system we can set extrinsics
+    sm.setSensor_T_R_S(sensor_id, exPtr->get_T_R_S());
   }
 
   return common::kSuccess;

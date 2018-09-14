@@ -7,11 +7,12 @@
 #include <vi-map/vi-map.h>
 
 namespace data_import_export {
+using namespace vi_map;
 
 void importLaserDataFromRosbag(
         const std::string& bag_filename, const std::string& laser_topic_s,
-        const std::string& sensor_id_s, const std::string& mission_id_s,
-        vi_map::VIMap* map);
+        const std::string& sensor_id_s, VIMission &mission,
+        VIMap* map);
 
 }  // namespace data_import_export
 

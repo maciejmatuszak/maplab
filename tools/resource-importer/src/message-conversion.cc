@@ -62,6 +62,32 @@ void convertPointCloudMessage(
   }
 }
 
+void convertPointCloudMessageIntensity(
+    sensor_msgs::PointCloud2ConstPtr point_cloud_msg,
+    resources::PointCloud* maplab_pointcloud) {
+  CHECK(point_cloud_msg);
+  CHECK_NOTNULL(maplab_pointcloud);
+
+  pcl::PointCloud<pcl::PointXYZI> pointcloud_pcl;
+  pcl::fromROSMsg(*point_cloud_msg, pointcloud_pcl);
+
+  maplab_pointcloud->reserve(pointcloud_pcl.size(), false, false, true);
+
+  for (size_t i = 0u; i < pointcloud_pcl.points.size(); ++i) {
+    if (!std::isfinite(pointcloud_pcl.points[i].x) ||
+        !std::isfinite(pointcloud_pcl.points[i].y) ||
+        !std::isfinite(pointcloud_pcl.points[i].z)) {
+      continue;
+    }
+
+    maplab_pointcloud->xyz.push_back(pointcloud_pcl.points[i].x);
+    maplab_pointcloud->xyz.push_back(pointcloud_pcl.points[i].y);
+    maplab_pointcloud->xyz.push_back(pointcloud_pcl.points[i].z);
+
+    maplab_pointcloud->scalars.push_back(pointcloud_pcl.points[i].intensity);
+  }
+}
+
 void convertDepthImageMessage(
     sensor_msgs::ImageConstPtr image_message, cv::Mat* image) {
   CHECK(image_message);

@@ -35,6 +35,24 @@ struct PointCloud {
     }
   }
 
+  void reserve(
+      const size_t size, const bool has_normals = true,
+      const bool has_colors = true, const bool has_scalars = true) {
+    xyz.reserve(3 * size);
+
+    if (has_normals) {
+      normals.reserve(3 * size);
+    }
+
+    if (has_colors) {
+      colors.reserve(3 * size);
+    }
+
+    if (has_scalars) {
+      scalars.reserve(1 * size);
+    }
+  }
+
   size_t size() const {
     CHECK_EQ(xyz.size() % 3, 0u);
     return (xyz.size() / 3);

@@ -8,6 +8,7 @@
 #include <vi-map-data-import-export/export-sensor.h>
 #include <vi-map-data-import-export/export-vertex-data.h>
 #include <vi-map-data-import-export/import-export-gps-data.h>
+#include <vi-map-data-import-export/import-export-laser-data.h>
 #include <vi-map/vi-map.h>
 
 DECLARE_string(map_mission);
@@ -438,13 +439,13 @@ int DataImportExportPlugin::importLaserScannFromRosbag() const {
   }
 
   if (FLAGS_sensor_id.empty()) {
-    LOG(ERROR) << "Specify a valid sensor id to be associated with laser scanns"
+    LOG(ERROR) << "Specify a valid sensor id to be associated with laser scanns "
                << "--sensor_id";
     return common::kStupidUserError;
   }
 
   if (FLAGS_mission_id.empty()) {
-    LOG(ERROR) << "Specify a valid mission id to be associated with laser scanns"
+    LOG(ERROR) << "Specify a valid mission id to be associated with laser scanns "
                << "--mission_id";
     return common::kStupidUserError;
   }
@@ -458,9 +459,27 @@ int DataImportExportPlugin::importLaserScannFromRosbag() const {
   vi_map::VIMapManager::MapWriteAccess map =
       map_manager.getMapWriteAccess(selected_map_key);
 
+  vi_map::MissionId mission_id;
+  mission_id.fromHexString(FLAGS_mission_id);
+
+  if (!mission_id.isValid()) {
+    LOG(ERROR) << "Invalid mission id: "
+               << FLAGS_mission_id;
+    return common::kStupidUserError;
+  }
+
+
+  if (!map->hasMission(mission_id)) {
+    LOG(ERROR) << "The mission id does not belong to selected map; mission_id: "
+               << mission_id.hexString();
+    return common::kStupidUserError;
+  }
+
+  VIMission &mission = map->getMission(mission_id);
+
   data_import_export::importLaserDataFromRosbag(
       bag_file, FLAGS_laser_topic,
-      FLAGS_sensor_id, FLAGS_mission_id, map.get());
+      FLAGS_sensor_id, mission, map.get());
 
   return common::kSuccess;
 }

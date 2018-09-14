@@ -67,6 +67,9 @@ class SensorManager : public common::YamlFileSerializable {
   template <class SensorType>
   bool getSensor(SensorType* sensor) const;
 
+  bool hasSensorMissionAssociation(const SensorId &sensor_id, const MissionId &mission_id);
+
+
   // Convenience function to retrieve the sensor if only a single one is
   // associated with a mission. Check fails if more than one sensor is present.
   template <class SensorType>

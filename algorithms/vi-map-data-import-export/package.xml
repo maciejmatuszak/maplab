@@ -19,5 +19,8 @@
   <depend>maplab_common</depend>
   <depend>rosbag</depend>
   <depend>roscpp</depend>
+  <depend>laser_geometry</depend>
+  <depend>resource_importer</depend>
+
   <depend>vi_map</depend>
 </package>

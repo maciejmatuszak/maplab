@@ -16,6 +16,21 @@ bool SensorManager::hasSensor<SensorId>(const SensorId& sensor_id) const {
   return sensors_.count(sensor_id) > 0u;
 }
 
+bool SensorManager::hasSensorMissionAssociation(
+    const SensorId& sensor_id, const MissionId& mission_id) {
+  CHECK(mission_id.isValid());
+  CHECK(hasSensor(sensor_id));
+  AlignedUnorderedMap<MissionId, SensorIdSet>::iterator
+      mission_sensor_ids_iterator = mission_id_to_sensors_map_.find(mission_id);
+
+  if (mission_sensor_ids_iterator == mission_id_to_sensors_map_.end()) {
+      //there is no entry for this mission
+    return false;
+  } else {
+      return (mission_sensor_ids_iterator->second.count(sensor_id) > 0);
+  }
+}
+
 void SensorManager::addSensor(Sensor::UniquePtr sensor) {
   CHECK(sensor);
   const SensorId sensor_id = sensor->getId();

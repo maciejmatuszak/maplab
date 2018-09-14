@@ -16,6 +16,10 @@ void convertPointCloudMessage(
     sensor_msgs::PointCloud2ConstPtr point_cloud_msg,
     resources::PointCloud* maplab_pointcloud);
 
+void convertPointCloudMessageIntensity(
+    sensor_msgs::PointCloud2ConstPtr point_cloud_msg,
+    resources::PointCloud* maplab_pointcloud);
+
 void convertDepthImageMessage(
     sensor_msgs::ImageConstPtr image_message, cv::Mat* image);
 
