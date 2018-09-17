@@ -7,6 +7,8 @@
 #include <aslam/common/memory.h>
 
 #include "visualization/constant-velocity-smoother.h"
+#include <signal.h>
+#include <glog/logging.h>
 
 namespace pose_graph {
 class VertexId;
@@ -22,14 +24,18 @@ class ViwlsGraphRvizPlotter;
 
 class SequentialPlotter final {
  public:
-  SequentialPlotter() = default;
-  ~SequentialPlotter() = default;
+    explicit SequentialPlotter();
+
+    ~SequentialPlotter();
 
   void publishMissionsSequentially(
       const vi_map::VIMap& map,
       const std::unordered_set<vi_map::MissionId>& missions);
+  static bool continue_visualisation_;
 
- private:
+private:
+  static void ctrcHandler(int s);
+
   void publishVertexPoseAsTFSmoothed(
       const vi_map::VIMap& map, const pose_graph::VertexId& vertex_id) const;
 
@@ -38,6 +44,8 @@ class SequentialPlotter final {
   }
 
   mutable AlignedMap<std::string, ConstantVelocitySmoother> smoothers_;
+  struct sigaction sigIntHandler_;
+  struct sigaction oldHandler_;
 };
 
 }  // namespace visualization

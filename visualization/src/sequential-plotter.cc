@@ -9,6 +9,7 @@
 #include "visualization/common-rviz-visualization.h"
 #include "visualization/viwls-graph-plotter.h"
 
+
 DECLARE_int32(vis_color_salt);
 DECLARE_double(vis_scale);
 
@@ -24,12 +25,36 @@ DEFINE_bool(
 
 namespace visualization {
 
+bool SequentialPlotter::continue_visualisation_ = true;
+
+SequentialPlotter::SequentialPlotter(){
+    sigIntHandler_.sa_handler = &SequentialPlotter::ctrcHandler;
+    sigemptyset(&sigIntHandler_.sa_mask);
+    sigIntHandler_.sa_flags = 0;
+
+    sigaction(SIGINT, &sigIntHandler_, &oldHandler_);
+
+}
+
+SequentialPlotter::~SequentialPlotter(){
+    sigaction(SIGINT, &oldHandler_, NULL);
+}
+
+
+void SequentialPlotter::ctrcHandler(int s){
+    continue_visualisation_ = false;
+    LOG(INFO) << "SequentialPlotter interrupted by user";
+}
+
 void SequentialPlotter::publishMissionsSequentially(
     const vi_map::VIMap& map, const vi_map::MissionIdSet& mission_set) {
   if (mission_set.empty()) {
     LOG(ERROR) << "Passed empty mission set to publish map sequentially.";
     return;
   }
+  continue_visualisation_ = true;
+
+
 
   const bool is_only_one_mission = (mission_set.size() == 1u);
 
@@ -78,13 +103,13 @@ void SequentialPlotter::publishMissionsSequentially(
   // It is highly unlikely we will deal with more than 1e4 missions.
   size_t edge_marker_id = 10000u;
 
-  while (more_vertices_exist) {
+  while (more_vertices_exist && continue_visualisation_) {
     freq_enforcer.EnforceFrequency(FLAGS_vis_seq_vertex_frequency);
     // Will be set to true if at least one mission has an unpublished vertex.
     more_vertices_exist = false;
     for (size_t mission_index = 0; mission_index < missions.size();
          ++mission_index) {
-      double master_mission_distance = 0;
+      double current_mission_distance = 0;
 
       const vi_map::MissionId& mission_id = missions[mission_index];
 
@@ -102,23 +127,24 @@ void SequentialPlotter::publishMissionsSequentially(
           double master_traveled_percent =
               mission_distance_traveled[kMasterMissionIndex] /
               mission_distance_traveled_total[kMasterMissionIndex];
-          master_mission_distance =
+          current_mission_distance =
               master_traveled_percent *
                   mission_distance_traveled_total[mission_index] +
               0.01;
         } else {
           // Set the limit of the current mission to the distance of the master.
-          master_mission_distance =
+          current_mission_distance =
               mission_distance_traveled[kMasterMissionIndex];
         }
       } else {
         // Set it to its own value s.t. each mission does only a single step
         // in every iteration.
-        master_mission_distance = mission_distance_traveled[mission_index];
+        current_mission_distance = mission_distance_traveled[mission_index];
       }
+      //we now have current_mission_distance calculated
 
       while (mission_distance_traveled[mission_index] <=
-             master_mission_distance) {
+             current_mission_distance) {
         pose_graph::VertexIdList vertex_ids;
         pose_graph::EdgeIdList edge_ids;
 
