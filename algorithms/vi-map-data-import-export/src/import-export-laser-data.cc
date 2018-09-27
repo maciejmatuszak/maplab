@@ -96,10 +96,9 @@ void importLaserDataFromRosbag(
 
     if (mission.hasOptionalSensorResourceId(
             backend::ResourceType::kPointCloudXYZI, sensor_id, timestamp_ns)) {
-      LOG(WARNING) << "\nLidar resource already exists @ time:" << timestamp_ns;
-      progress_bar.increment();
-      ++num_ignored;
-      continue;
+      LOG(WARNING) << "\nLidar resource already exists - deleting @ time:" << timestamp_ns;
+      mission.deleteOptionalSensorResourceId(backend::ResourceType::kPointCloudXYZI, sensor_id, timestamp_ns);
+
     }
 
     // convert to point cloud2

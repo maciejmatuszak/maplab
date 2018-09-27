@@ -101,6 +101,10 @@ void integratePointCloud(
   voxblox_point_cloud.points_C = &tmp_points_C;
   voxblox_point_cloud.colors = &tmp_colors;
   CHECK(backend::convertPointCloudType(points_C, &voxblox_point_cloud));
+  if(tmp_colors.size() == 0)
+  {
+      tmp_colors.resize(tmp_points_C.size(), voxblox::Color::White());
+  }
 
   integrateColorPointCloud(T_G_C, tmp_points_C, tmp_colors, tsdf_integrator);
 }

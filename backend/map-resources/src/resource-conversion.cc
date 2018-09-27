@@ -285,7 +285,7 @@ template <>
 void addScalarToPointCloud(
     const float /*scalar*/, const size_t /*index*/,
     resources::VoxbloxColorPointCloud* /*point_cloud*/) {
-  LOG(FATAL) << "Scalars can't be added to Voxblox color point-clouds.";
+  //LOG(FATAL) << "Scalars can't be added to Voxblox color point-clouds.";
 }
 
 template <>
