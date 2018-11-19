@@ -44,7 +44,7 @@ DEFINE_uint64(
 
 DEFINE_bool(
     dense_tsdf_voxel_carving_enabled, true,
-    "Voxels per side of a Block of the TSDF grid.");
+    "If true, the entire length of a ray is integrated, if false only the region inside the trunaction distance is used.");
 
 DEFINE_bool(
     dense_tsdf_voxel_use_clearing_rays, true,
