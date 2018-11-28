@@ -115,6 +115,7 @@ class ViwlsGraphRvizPlotter {
   static const std::string kLandmarkNormalsTopic;
   static const std::string kLandmarkPairsTopic;
   static const std::string kLandmarkTopic;
+  static const std::string kResourcePcTopic;
   static const std::string kLoopclosureTopic;
   static const std::string kMeshTopic;
   static const std::string kNcamExtrinsicsTopic;

@@ -94,6 +94,8 @@ const std::string ViwlsGraphRvizPlotter::kLandmarkNormalsTopic =
 const std::string ViwlsGraphRvizPlotter::kLandmarkPairsTopic = "landmark_pairs";
 const std::string ViwlsGraphRvizPlotter::kLandmarkTopic =
     visualization::kViMapTopicHead + "_landmarks";
+const std::string ViwlsGraphRvizPlotter::kResourcePcTopic =
+    visualization::kViMapTopicHead + "_resources";
 const std::string ViwlsGraphRvizPlotter::kLoopclosureTopic = "loop_closures";
 const std::string ViwlsGraphRvizPlotter::kMeshTopic = "meshes";
 const std::string ViwlsGraphRvizPlotter::kNcamExtrinsicsTopic =

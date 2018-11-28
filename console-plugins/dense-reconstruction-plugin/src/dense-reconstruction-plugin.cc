@@ -12,14 +12,18 @@
 #include <gflags/gflags.h>
 #include <map-manager/map-manager.h>
 #include <maplab-common/file-system-tools.h>
+#include <map-resources/resource-common.h>
 #include <vi-map/unique-id.h>
 #include <vi-map/vi-map.h>
+#include <vi-map/vi-mission.h>
 #include <visualization/viwls-graph-plotter.h>
 #include <voxblox-interface/integration.h>
 #include <voxblox/core/tsdf_map.h>
 #include <voxblox/integrator/tsdf_integrator.h>
 #include <voxblox/io/mesh_ply.h>
 #include <voxblox/mesh/mesh_integrator.h>
+#include <visualization/rviz-visualization-sink.h>
+
 
 DECLARE_string(map_mission_list);
 DECLARE_bool(overwrite);
@@ -368,6 +372,145 @@ DenseReconstructionPlugin::DenseReconstructionPlugin(
       "--dense_depth_resource_input_type if available.",
       common::Processing::Sync);
 
+  addCommand(
+      {"publish_point_clouds", "ppcs"},
+      [this]() -> int {
+        // Select map.
+        std::string selected_map_key;
+        if (!getSelectedMapKeyIfSet(&selected_map_key)) {
+          return common::kStupidUserError;
+        }
+        vi_map::VIMapManager map_manager;
+        const vi_map::VIMapManager::MapReadAccess map =
+            map_manager.getMapReadAccess(selected_map_key);
+
+        vi_map::MissionIdList mission_ids;
+        if (!parseMultipleMissionIds(*(map.get()), &mission_ids)) {
+          return common::kStupidUserError;
+        }
+        const backend::ResourceType input_resource_type =
+          static_cast<backend::ResourceType>(
+              FLAGS_dense_depth_resource_input_type);
+
+        // If no mission were selected, use all missions.
+        if (mission_ids.empty())
+        {
+            map.get()->getAllMissionIdsSortedByTimestamp(&mission_ids);
+        }
+        for (const vi_map::MissionId& mission_id : mission_ids)
+        {
+            const aslam::Transformation& T_G_M =
+            map.get()->getMissionBaseFrameForMission(mission_id).get_T_G_M();
+            const landmark_triangulation::PoseInterpolator pose_interpolator;
+            landmark_triangulation::VertexToTimeStampMap vertex_to_time_map;
+            int64_t min_timestamp_ns;
+            int64_t max_timestamp_ns;
+            pose_interpolator.getVertexToTimeStampMap(
+                *map, mission_id, &vertex_to_time_map, 
+                &min_timestamp_ns,
+                &max_timestamp_ns);
+            const vi_map::VIMission &mission = map.get()->getMission(mission_id);
+            typedef std::unordered_map<vi_map::SensorId,backend::OptionalSensorResources> SensorsToResourceMap;
+            const SensorsToResourceMap* sensor_id_to_res_id_map;
+            sensor_id_to_res_id_map = mission.getAllOptionalSensorResourceIdsOfType<vi_map::SensorId>(
+                              input_resource_type);
+            for (const typename SensorsToResourceMap::value_type& sensor_to_res_ids :
+                           *sensor_id_to_res_id_map)
+            {
+                const vi_map::SensorId& sensor_id = sensor_to_res_ids.first;
+                 const std::string sensor_id_str = sensor_id.shortHex();
+                const backend::OptionalSensorResources& resource_buffer =
+                              sensor_to_res_ids.second;
+
+                // Get transformation between reference (e.g. IMU) and sensor.
+                aslam::Transformation T_I_S;
+                map.get()->getSensorManager().getSensorOrCamera_T_R_S(
+                              sensor_id, &T_I_S);
+                const size_t num_resources = resource_buffer.size();
+                VLOG(1) << "Sensor " << sensor_id.shortHex() << " has "
+                                  << num_resources << " such resources.";
+                // Collect all timestamps that need to be interpolated.
+                Eigen::Matrix<int64_t, 1, Eigen::Dynamic> resource_timestamps(num_resources);
+                size_t idx = 0u;
+                for (const std::pair<int64_t, backend::ResourceId>& stamped_resource_id : resource_buffer) {
+                    // If the resource timestamp does not lie within the min and max
+                    // timestamp of the vertices, we cannot interpolate the position. To
+                    // keep this efficient, we simply replace timestamps outside the range
+                    // with the min or max. Since their transformation will not be used
+                    // later, that's fine.
+                    resource_timestamps[idx] = std::max(
+                        min_timestamp_ns,
+                        std::min(
+                            max_timestamp_ns,
+                            stamped_resource_id.first));
+                    ++idx;
+
+                }
+                // Interpolate poses at resource timestamp.
+                aslam::TransformationVector poses_M_I;
+                pose_interpolator.getPosesAtTime(
+                *map, mission_id, resource_timestamps, &poses_M_I);
+
+                CHECK_EQ(static_cast<int>(poses_M_I.size()), resource_timestamps.size());
+                CHECK_EQ(poses_M_I.size(), resource_buffer.size());
+                // Retrieve and integrate all resources.
+                idx = 0u;
+                common::ProgressBar tsdf_progress_bar(resource_buffer.size());
+                for (const std::pair<int64_t, backend::ResourceId>& stamped_resource_id :
+                   resource_buffer) {
+                    tsdf_progress_bar.increment();
+
+                    // We assume the frame of reference for the sensor system is the IMU
+                    // frame.
+                    const aslam::Transformation& T_M_I = poses_M_I[idx];
+                    const aslam::Transformation T_G_S = T_G_M * T_M_I * T_I_S;
+                    ++idx;
+
+                    // we pretend it is happening now
+                    ros::Time time = ros::Time::now();
+
+                    visualization::publishTF(
+                        T_G_S,
+                        visualization::kDefaultMapFrame,
+                        sensor_id_str,
+                        time);
+
+                    const int64_t timestamp_ns = stamped_resource_id.first;
+
+                    // If the resource timestamp does not lie within the min and max
+                    // timestamp of the vertices, we cannot interpolate the position.
+                    if (timestamp_ns < min_timestamp_ns ||
+                        timestamp_ns > max_timestamp_ns) {
+                      LOG(WARNING) << "The optional depth resource at " << timestamp_ns
+                                   << " is outside of the time range of the pose graph, "
+                                   << "skipping.";
+                      continue;
+                    }
+                    resources::PointCloud point_cloud;
+                    if (!map.get()->getOptionalSensorResource(
+                          mission, input_resource_type, sensor_id,
+                          timestamp_ns, &point_cloud)) {
+                          LOG(FATAL) << "Cannot retrieve optional point cloud resources at "
+                               << "timestamp " << timestamp_ns << "!";
+                    }
+                    sensor_msgs::PointCloud2 pc2;
+                    pc2.header.stamp = time;
+                    pc2.header.frame_id = sensor_id_str;
+                    CHECK(backend::convertPointCloudType(point_cloud, &pc2));
+                    visualization::RVizVisualizationSink::publish<sensor_msgs::PointCloud2>(visualization::ViwlsGraphRvizPlotter::kResourcePcTopic, pc2);
+
+                }
+            }
+
+        }
+
+
+
+        return common::kSuccess;
+      },
+      "Use all optional resources point clouds for the selected missions "
+      "and publish them.",
+      common::Processing::Sync);
   addCommand(
       {"create_mesh_from_tsdf_grid", "export_tsdf"},
       [this]() -> int {
