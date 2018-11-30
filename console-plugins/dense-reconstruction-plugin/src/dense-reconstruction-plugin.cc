@@ -432,9 +432,6 @@ DenseReconstructionPlugin::DenseReconstructionPlugin(
                            *sensor_id_to_res_id_map)
             {
                 const vi_map::SensorId& sensor_id = sensor_to_res_ids.first;
-                const std::string sensor_id_str = "sensor_" + sensor_id.shortHex();
-                const std::string mission_id_str = "mission_" + mission_id.shortHex();
-                const std::string imu_id_str = "imu_" + mission_id.shortHex();
                 const backend::OptionalSensorResources& resource_buffer =
                               sensor_to_res_ids.second;
 
@@ -442,6 +439,7 @@ DenseReconstructionPlugin::DenseReconstructionPlugin(
                 aslam::Transformation T_I_S;
                 map.get()->getSensorManager().getSensorOrCamera_T_R_S(
                               sensor_id, &T_I_S);
+                const vi_map::Sensor& sensor = map.get()->getSensorManager().getSensor(sensor_id);
                 const size_t num_resources = resource_buffer.size();
                 LOG(INFO) << "Sensor " << sensor_id.shortHex() << " has "
                                   << num_resources << " such resources.";
@@ -488,17 +486,17 @@ DenseReconstructionPlugin::DenseReconstructionPlugin(
                     visualization::publishTF(
                         T_G_M,
                         visualization::kDefaultMapFrame,
-                        mission_id_str,
+                        visualization::kDefaultMissionFrame,
                         time);
                     visualization::publishTF(
                         T_M_I,
-                        mission_id_str,
-                        imu_id_str,
+                        visualization::kDefaultMissionFrame,
+                        visualization::kDefaultImuFrame,
                         time);
                     visualization::publishTF(
                         T_I_S,
-                        imu_id_str,
-                        sensor_id_str,
+                        visualization::kDefaultImuFrame,
+                        sensor.getHardwareId(),
                         time);
                     const int64_t timestamp_ns = stamped_resource_id.first;
 
@@ -520,7 +518,7 @@ DenseReconstructionPlugin::DenseReconstructionPlugin(
                     }
                     sensor_msgs::PointCloud2 pc2;
                     pc2.header.stamp = time;
-                    pc2.header.frame_id = sensor_id_str;
+                    pc2.header.frame_id = sensor.getHardwareId();
                     CHECK(backend::convertPointCloudType(point_cloud, &pc2));
                     visualization::RVizVisualizationSink::publish<sensor_msgs::PointCloud2>(visualization::ViwlsGraphRvizPlotter::kResourcePcTopic, pc2);
                     if(sigint_breaker.isBreakRequested())
