@@ -3,6 +3,7 @@
 #include <cstring>
 #include <string>
 #include <vector>
+#include <unordered_map>
 
 #include <console-common/console.h>
 #include <dense-reconstruction/conversion-tools.h>
@@ -16,6 +17,7 @@
 #include <vi-map/unique-id.h>
 #include <vi-map/vi-map.h>
 #include <vi-map/vi-mission.h>
+#include <maplab-common/sigint-breaker.h>
 #include <visualization/viwls-graph-plotter.h>
 #include <voxblox-interface/integration.h>
 #include <voxblox/core/tsdf_map.h>
@@ -412,13 +414,27 @@ DenseReconstructionPlugin::DenseReconstructionPlugin(
             const vi_map::VIMission &mission = map.get()->getMission(mission_id);
             typedef std::unordered_map<vi_map::SensorId,backend::OptionalSensorResources> SensorsToResourceMap;
             const SensorsToResourceMap* sensor_id_to_res_id_map;
+
+            LOG(INFO) << "Getting all resources for mission: " << mission_id.shortHex()
+                    << "; of type:" << static_cast<int>(input_resource_type) << ";";
             sensor_id_to_res_id_map = mission.getAllOptionalSensorResourceIdsOfType<vi_map::SensorId>(
                               input_resource_type);
+
+            if(sensor_id_to_res_id_map == NULL || sensor_id_to_res_id_map->empty())
+            {
+                LOG(INFO) << "In mission mission: " << mission_id.shortHex()
+                                  << " there is no resources of type:" << static_cast<int>(input_resource_type) << ";";
+                continue;
+            }
+            LOG(INFO) << "Got : " << sensor_id_to_res_id_map->size() << "; resources;";
+            common::SigintBreaker sigint_breaker;
             for (const typename SensorsToResourceMap::value_type& sensor_to_res_ids :
                            *sensor_id_to_res_id_map)
             {
                 const vi_map::SensorId& sensor_id = sensor_to_res_ids.first;
-                 const std::string sensor_id_str = sensor_id.shortHex();
+                const std::string sensor_id_str = "sensor_" + sensor_id.shortHex();
+                const std::string mission_id_str = "mission_" + mission_id.shortHex();
+                const std::string imu_id_str = "imu_" + mission_id.shortHex();
                 const backend::OptionalSensorResources& resource_buffer =
                               sensor_to_res_ids.second;
 
@@ -427,7 +443,7 @@ DenseReconstructionPlugin::DenseReconstructionPlugin(
                 map.get()->getSensorManager().getSensorOrCamera_T_R_S(
                               sensor_id, &T_I_S);
                 const size_t num_resources = resource_buffer.size();
-                VLOG(1) << "Sensor " << sensor_id.shortHex() << " has "
+                LOG(INFO) << "Sensor " << sensor_id.shortHex() << " has "
                                   << num_resources << " such resources.";
                 // Collect all timestamps that need to be interpolated.
                 Eigen::Matrix<int64_t, 1, Eigen::Dynamic> resource_timestamps(num_resources);
@@ -470,11 +486,20 @@ DenseReconstructionPlugin::DenseReconstructionPlugin(
                     ros::Time time = ros::Time::now();
 
                     visualization::publishTF(
-                        T_G_S,
+                        T_G_M,
                         visualization::kDefaultMapFrame,
+                        mission_id_str,
+                        time);
+                    visualization::publishTF(
+                        T_M_I,
+                        mission_id_str,
+                        imu_id_str,
+                        time);
+                    visualization::publishTF(
+                        T_I_S,
+                        imu_id_str,
                         sensor_id_str,
                         time);
-
                     const int64_t timestamp_ns = stamped_resource_id.first;
 
                     // If the resource timestamp does not lie within the min and max
@@ -498,6 +523,13 @@ DenseReconstructionPlugin::DenseReconstructionPlugin(
                     pc2.header.frame_id = sensor_id_str;
                     CHECK(backend::convertPointCloudType(point_cloud, &pc2));
                     visualization::RVizVisualizationSink::publish<sensor_msgs::PointCloud2>(visualization::ViwlsGraphRvizPlotter::kResourcePcTopic, pc2);
+                    if(sigint_breaker.isBreakRequested())
+                    {
+                        LOG(INFO) << "Uaser requested break (CTRL^C)";
+                        break;
+                    }
+                    usleep(10000);
+
 
                 }
             }
