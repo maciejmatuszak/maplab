@@ -93,13 +93,67 @@ void addPointToPointCloud(
     const Eigen::Vector3d& point_C, const size_t index,
     sensor_msgs::PointCloud2* point_cloud) {
   CHECK_NOTNULL(point_cloud);
-  constexpr size_t kNumFields = 4u;
-  constexpr size_t kFloat32SizeBytes = 4u;
-  size_t byte_index = index * kNumFields * kFloat32SizeBytes;
-  CHECK_LT(
-      byte_index + (3u * kFloat32SizeBytes) - 1u, point_cloud->data.size());
-  std::memcpy(
-      &point_cloud->data[byte_index], point_C.data(), 2u * kFloat32SizeBytes);
+  size_t byte_index = index * point_cloud->point_step;
+
+  if(point_cloud->fields[0].datatype == sensor_msgs::PointField::INT8)
+  {
+      Eigen::Matrix< int8_t , 3 , 1> point_Cf = point_C.cast<int8_t>();
+      CHECK_LE(byte_index + sizeof(int8_t) * 3u, point_cloud->data.size());
+      std::memcpy(
+          &point_cloud->data[byte_index], point_Cf.data(), sizeof(int8_t) * 3u);
+  }
+  else if(point_cloud->fields[0].datatype == sensor_msgs::PointField::UINT8)
+  {
+      Eigen::Matrix< uint8_t , 3 , 1> point_Cf = point_C.cast<uint8_t>();
+      CHECK_LE(byte_index + sizeof(uint8_t) * 3u, point_cloud->data.size());
+      std::memcpy(
+          &point_cloud->data[byte_index], point_Cf.data(), sizeof(uint8_t) * 3u);
+  }
+  else if(point_cloud->fields[0].datatype == sensor_msgs::PointField::INT16)
+  {
+      Eigen::Matrix< int16_t , 3 , 1> point_Cf = point_C.cast<int16_t>();
+      CHECK_LE(byte_index + sizeof(int16_t) * 3u, point_cloud->data.size());
+      std::memcpy(
+          &point_cloud->data[byte_index], point_Cf.data(), sizeof(int16_t) * 3u);
+  }
+  else if(point_cloud->fields[0].datatype == sensor_msgs::PointField::UINT16)
+  {
+      Eigen::Matrix< uint16_t , 3 , 1> point_Cf = point_C.cast<uint16_t>();
+      CHECK_LE(byte_index + sizeof(uint16_t) * 3u, point_cloud->data.size());
+      std::memcpy(
+          &point_cloud->data[byte_index], point_Cf.data(), sizeof(uint16_t) * 3u);
+  }
+  else if(point_cloud->fields[0].datatype == sensor_msgs::PointField::INT32)
+  {
+      Eigen::Matrix< int32_t , 3 , 1> point_Cf = point_C.cast<int32_t>();
+      CHECK_LE(byte_index + sizeof(int32_t) * 3u, point_cloud->data.size());
+      std::memcpy(
+          &point_cloud->data[byte_index], point_Cf.data(), sizeof(int32_t) * 3u);
+  }
+  else if(point_cloud->fields[0].datatype == sensor_msgs::PointField::UINT32)
+  {
+      Eigen::Matrix< uint32_t , 3 , 1> point_Cf = point_C.cast<uint32_t>();
+      CHECK_LE(byte_index + sizeof(uint32_t) * 3u, point_cloud->data.size());
+      std::memcpy(
+          &point_cloud->data[byte_index], point_Cf.data(), sizeof(uint32_t) * 3u);
+  }
+  else if(point_cloud->fields[0].datatype == sensor_msgs::PointField::FLOAT32)
+  {
+      Eigen::Vector3f point_Cf = point_C.cast<float>();
+      CHECK_LE(byte_index + sizeof(float) * 3u, point_cloud->data.size());
+      std::memcpy(
+          &point_cloud->data[byte_index], point_Cf.data(), sizeof(float) * 3u);
+  }
+  else if(point_cloud->fields[0].datatype == sensor_msgs::PointField::FLOAT64)
+  {
+      CHECK_LE(byte_index + sizeof(double) * 3u, point_cloud->data.size());
+      std::memcpy(
+          &point_cloud->data[byte_index], point_C.data(), sizeof(double) * 3u);
+  }
+  else
+  {
+      CHECK_EQ(false,true) << "Unsupported field type";
+  }
 }
 
 template <>
