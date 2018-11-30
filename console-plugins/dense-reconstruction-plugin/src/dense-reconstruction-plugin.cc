@@ -58,6 +58,11 @@ DEFINE_bool(
     "defined by --dense_tsdf_max_ray_length_m up to the threshold to clear "
     "free space. This option is intended to create maps for path planning.");
 
+DEFINE_bool(
+    dense_tsdf_voxel_use_const_weight, false,
+    "If enabled the point cloud integration will not use weighting based on distance, "
+    "this is usefull especially for laser point cloud integration.");
+
 DEFINE_double(
     dense_tsdf_truncation_distance_m, 0.1,
     "Truncation distance of the TSDF grid [m].");
@@ -321,13 +326,15 @@ DenseReconstructionPlugin::DenseReconstructionPlugin(
         tsdf_integrator_config.max_ray_length_m =
             static_cast<voxblox::FloatingPoint>(
                 FLAGS_dense_tsdf_max_ray_length_m);
+        tsdf_integrator_config.use_const_weight =
+                FLAGS_dense_tsdf_voxel_use_const_weight;
 
         voxblox::TsdfMap::Config tsdf_map_config;
         tsdf_map_config.tsdf_voxel_size =
             static_cast<voxblox::FloatingPoint>(FLAGS_dense_tsdf_voxel_size_m);
         tsdf_map_config.tsdf_voxels_per_side = FLAGS_dense_tsdf_voxels_per_side;
 
-        voxblox::TsdfMap tsdf_map(tsdf_map_config);
+            voxblox::TsdfMap tsdf_map(tsdf_map_config);
 
         const backend::ResourceType input_resource_type =
             static_cast<backend::ResourceType>(
@@ -362,8 +369,13 @@ DenseReconstructionPlugin::DenseReconstructionPlugin(
                   << "MB";
 
         if (!FLAGS_dense_result_mesh_output_file.empty()) {
+                      LOG(INFO) << "Creating mesh file: " << FLAGS_dense_result_mesh_output_file;
           return exportTsdfMeshToFile(
               FLAGS_dense_result_mesh_output_file, &tsdf_map);
+        }
+        else
+        {
+          LOG(INFO) << "Mesh file will not be created: ";
         }
         return common::kSuccess;
       },
