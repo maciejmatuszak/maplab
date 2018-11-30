@@ -251,7 +251,7 @@ bool integrateAllOptionalSensorDepthResourcesOfType(
                          << "timestamp " << timestamp_ns << "!";
             }
 
-            VLOG(3) << "Found point cloud at timestamp " << timestamp_ns;
+            //VLOG(3) << "Found point cloud at timestamp " << timestamp_ns;
             integratePointCloud(T_G_S, point_cloud, &tsdf_integrator);
             continue;
           }
