@@ -57,7 +57,10 @@ void ResourceLoader::deleteResourceFile(
   CHECK(!folder.empty());
   std::string file_path;
   getResourceFilePath(id, type, folder, &file_path);
-  CHECK_EQ(std::remove(file_path.c_str()), 0);
+  if(common::fileExists(file_path))
+  {
+    CHECK_EQ(std::remove(file_path.c_str()), 0);
+  }
 }
 
 void ResourceLoader::getResourceFilePath(
