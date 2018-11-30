@@ -347,11 +347,9 @@ void addScalarToPointCloud(
     const float scalar, const size_t index,
     sensor_msgs::PointCloud2* point_cloud) {
   CHECK_NOTNULL(point_cloud);
-  constexpr size_t kNumFields = 4u;
-  constexpr size_t kFloat32SizeBytes = 4u;
   const size_t byte_index =
-      index * kNumFields * kFloat32SizeBytes + 3u * kFloat32SizeBytes;
-  CHECK_LT(byte_index + kFloat32SizeBytes - 1u, point_cloud->data.size());
+      index * point_cloud->point_step + point_cloud->fields[3].offset;
+  CHECK_LT(byte_index + sizeof(float) - 1u, point_cloud->data.size());
   std::memcpy(&point_cloud->data[byte_index], &scalar, sizeof(float));
 }
 
