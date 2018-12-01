@@ -97,6 +97,12 @@ DEFINE_int32(
     "RawDepthMap = 8, OptimizedDepthMap = 9, PointCloudXYZ = 16, "
     "PointCloudXYZRGBN = 17, kPointCloudXYZI = 21");
 
+DEFINE_int32(
+    publish_point_cloud_interval_ms, 20,
+    "Sets the interval [ms] for publish_point_clouds between point cloud publishing");
+
+
+
 namespace dense_reconstruction {
 
 bool parseMultipleMissionIds(
@@ -405,6 +411,7 @@ DenseReconstructionPlugin::DenseReconstructionPlugin(
         const backend::ResourceType input_resource_type =
           static_cast<backend::ResourceType>(
               FLAGS_dense_depth_resource_input_type);
+        uint32_t piblishInterval_us = static_cast<uint32_t>(FLAGS_publish_point_cloud_interval_ms) * 1000u;
 
         // If no mission were selected, use all missions.
         if (mission_ids.empty())
@@ -538,7 +545,10 @@ DenseReconstructionPlugin::DenseReconstructionPlugin(
                         LOG(INFO) << "Uaser requested break (CTRL^C)";
                         break;
                     }
-                    usleep(10000);
+                    if(piblishInterval_us > 0)
+                    {
+                        usleep(piblishInterval_us);
+                    }
 
 
                 }
